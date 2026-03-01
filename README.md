@@ -55,7 +55,7 @@ Users can:
 ## Architecture
 
 ```
-Architecture.png
+/Users/kapilhingu/Desktop/Architecture.png
 ```
 
 **Routing logic:** The orchestrator first tries fast keyword matching. If ambiguous, it falls back to an LLM intent classifier before dispatching to the appropriate specialized agent.
