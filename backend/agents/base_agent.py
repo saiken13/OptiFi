@@ -61,6 +61,9 @@ class BaseAgent(ABC):
         from models.budget import Budget
         from models.transaction import Transaction
 
+        today = date.today()
+        saved = 0
+
         try:
             user_prompt = f"Today's date: {today.strftime('%Y-%m-%d')}\n\nUser message: {message}"
             raw = await self.ask_llm(system=_EXTRACT_SYSTEM, user=user_prompt, max_tokens=700)
@@ -71,9 +74,6 @@ class BaseAgent(ABC):
             data = json.loads(raw.strip())
         except Exception:
             return 0
-
-        saved = 0
-        today = date.today()
 
         for loan_data in data.get("loans", []):
             balance = float(loan_data.get("balance", 0))
