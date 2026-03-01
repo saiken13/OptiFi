@@ -55,29 +55,7 @@ Users can:
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Next.js 14 Frontend                   │
-│  (App Router · TypeScript · Tailwind · TanStack Query)   │
-└───────────────────────┬─────────────────────────────────┘
-                        │ REST API (axios, httpOnly cookies)
-┌───────────────────────▼─────────────────────────────────┐
-│                     FastAPI Backend                      │
-│                                                          │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │              Multi-Agent Orchestrator             │   │
-│  │   keyword routing → LLM intent classifier        │   │
-│  │                                                   │   │
-│  │  budget  goal  loan  purchase  weekly_review tax  │   │
-│  └──────────────────────────────────────────────────┘   │
-│                                                          │
-│  Services: purchase_optimizer · card_import · tx_service │
-│  Database: PostgreSQL (SQLAlchemy async + asyncpg)       │
-└─────────────────────────────────────────────────────────┘
-                        │
-          ┌─────────────┼──────────────┐
-          ▼             ▼              ▼
-     Groq LLM      Serper API     PostgreSQL
-  (LLaMA 3.3 70B) (web search)   (Supabase or self-hosted)
+Architecture.png
 ```
 
 **Routing logic:** The orchestrator first tries fast keyword matching. If ambiguous, it falls back to an LLM intent classifier before dispatching to the appropriate specialized agent.
