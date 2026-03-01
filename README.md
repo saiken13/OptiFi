@@ -54,9 +54,7 @@ Users can:
 
 ## Architecture
 
-```
-/Users/kapilhingu/Desktop/Architecture.png
-```
+![OptiFi Architecture](assets/architecture.png)
 
 **Routing logic:** The orchestrator first tries fast keyword matching. If ambiguous, it falls back to an LLM intent classifier before dispatching to the appropriate specialized agent.
 
