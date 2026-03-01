@@ -59,7 +59,7 @@ export function Sidebar() {
         {sidebarOpen && (
           <div className="flex items-center gap-2">
             <DollarSign className="h-5 w-5 text-primary" />
-            <span className="font-bold text-primary">FinBuddy</span>
+            <span className="font-bold text-primary">OptiFi</span>
           </div>
         )}
         <button
