@@ -30,7 +30,14 @@ export function ChatWindow() {
 
   const sendMessage = useMutation({
     mutationFn: (message: string) => chatApi.send(message).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["chat-history"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["chat-history"] });
+      qc.invalidateQueries({ queryKey: ["budgets"] });
+      qc.invalidateQueries({ queryKey: ["goals"] });
+      qc.invalidateQueries({ queryKey: ["loans"] });
+      qc.invalidateQueries({ queryKey: ["txn-summary"] });
+      qc.invalidateQueries({ queryKey: ["transactions"] });
+    },
   });
 
   const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([]);
