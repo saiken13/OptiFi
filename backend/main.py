@@ -6,6 +6,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from database import create_tables, settings
 from routers import auth, goals, budgets, loans, transactions, alerts, weekly_review, chat, cards, memberships, purchase, tax
 
+cors_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+if not cors_origins:
+    cors_origins = [settings.FRONTEND_URL]
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,7 +26,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,6 +35,8 @@ app.add_middleware(
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.SECRET_KEY,
+    https_only=settings.COOKIE_SECURE,
+    same_site=settings.COOKIE_SAMESITE.lower(),
 )
 
 app.include_router(auth.router)

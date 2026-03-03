@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     ONESIGNAL_APP_ID: str = ""
     ONESIGNAL_REST_API_KEY: str = ""
     FRONTEND_URL: str = "http://localhost:3000"
+    CORS_ORIGINS: str = ""
+    COOKIE_SECURE: bool = False
+    COOKIE_SAMESITE: str = "lax"
+    COOKIE_DOMAIN: str = ""
     RESEND_API_KEY: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

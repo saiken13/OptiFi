@@ -25,12 +25,15 @@ oauth.register(
 
 
 def _set_token_cookie(response: Response, token: str):
+    cookie_domain = settings.COOKIE_DOMAIN or None
     response.set_cookie(
         key="access_token",
         value=token,
         httponly=True,
-        secure=False,  # set True in production
-        samesite="lax",
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE.lower(),
+        domain=cookie_domain,
+        path="/",
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
@@ -105,7 +108,7 @@ async def google_callback(request: Request, response: Response, db: AsyncSession
     jwt_token = create_access_token({"sub": str(user.id)})
 
     redirect = RedirectResponse(url=f"{settings.FRONTEND_URL}/dashboard")
-    redirect.set_cookie(key="access_token", value=jwt_token, httponly=True, samesite="lax")
+    _set_token_cookie(redirect, jwt_token)
     return redirect
 
 
@@ -134,5 +137,13 @@ async def get_me(db: AsyncSession = Depends(get_db), user_id: str = Depends(get_
 
 @router.post("/logout")
 async def logout(response: Response):
-    response.delete_cookie("access_token")
+    cookie_domain = settings.COOKIE_DOMAIN or None
+    response.delete_cookie(
+        key="access_token",
+        domain=cookie_domain,
+        path="/",
+        samesite=settings.COOKIE_SAMESITE.lower(),
+        secure=settings.COOKIE_SECURE,
+        httponly=True,
+    )
     return {"ok": True}
