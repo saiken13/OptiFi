@@ -13,6 +13,13 @@ const today = new Date().toISOString().split("T")[0];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"];
 
+type TransactionSummary = {
+  total_income: number;
+  total_expenses: number;
+  net: number;
+  by_category: Record<string, number>;
+};
+
 export default function TransactionsPage() {
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [importedCount, setImportedCount] = useState(0);
@@ -28,7 +35,7 @@ export default function TransactionsPage() {
     queryFn: () => transactionsApi.list({ limit: 500 }).then((r) => r.data),
   });
 
-  const { data: summary } = useQuery({
+  const { data: summary } = useQuery<TransactionSummary>({
     queryKey: ["txn-summary", summaryMonth, summaryYear],
     queryFn: () => transactionsApi.summary(summaryMonth, summaryYear).then((r) => r.data),
   });
@@ -253,7 +260,7 @@ export default function TransactionsPage() {
             <h3 className="text-sm font-semibold mb-3">Spending by Category</h3>
             <div className="space-y-2">
               {Object.entries(summary.by_category)
-                .sort(([, a], [, b]) => b - a)
+                .sort(([, a], [, b]) => Number(b) - Number(a))
                 .map(([cat, amount]) => {
                   const pct = (amount / summary.total_expenses) * 100;
                   const color = CATEGORY_COLORS[cat] || "#94a3b8";
