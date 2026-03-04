@@ -1,7 +1,9 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import AsyncGenerator
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from dotenv import load_dotenv
 load_dotenv()  # loads backend/.env if you run from backend folder
 
@@ -30,14 +32,29 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=False,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-    connect_args={"statement_cache_size": 0},
-)
+def _with_asyncpg_safe_params(url: str) -> str:
+    """Disable asyncpg prepared statement caching for PgBouncer transaction poolers."""
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query.setdefault("prepared_statement_cache_size", "0")
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
+database_url = _with_asyncpg_safe_params(settings.DATABASE_URL)
+engine_kwargs = {
+    "echo": False,
+    "pool_pre_ping": True,
+    "connect_args": {"statement_cache_size": 0},
+}
+
+# Supabase transaction pooler (PgBouncer) is incompatible with pooled prepared statements.
+if "pooler.supabase.com" in database_url:
+    engine_kwargs["poolclass"] = NullPool
+else:
+    engine_kwargs["pool_size"] = 10
+    engine_kwargs["max_overflow"] = 20
+
+engine = create_async_engine(database_url, **engine_kwargs)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
