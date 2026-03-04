@@ -259,8 +259,8 @@ export default function TransactionsPage() {
           <div className="bg-card border border-border rounded-xl p-4">
             <h3 className="text-sm font-semibold mb-3">Spending by Category</h3>
             <div className="space-y-2">
-              {Object.entries(summary.by_category)
-                .sort(([, a], [, b]) => Number(b) - Number(a))
+              {(Object.entries(summary.by_category) as [string, number][])
+                .sort(([, a], [, b]) => b - a)
                 .map(([cat, amount]) => {
                   const pct = (amount / summary.total_expenses) * 100;
                   const color = CATEGORY_COLORS[cat] || "#94a3b8";
