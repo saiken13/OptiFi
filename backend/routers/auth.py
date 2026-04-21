@@ -82,7 +82,10 @@ async def google_login(request: Request):
 
 @router.get("/google/callback")
 async def google_callback(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
-    token = await oauth.google.authorize_access_token(request)
+    try:
+        token = await oauth.google.authorize_access_token(request)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Google OAuth failed: {e}")
     user_info = token.get("userinfo")
     if not user_info:
         raise HTTPException(status_code=400, detail="Failed to get user info from Google")
