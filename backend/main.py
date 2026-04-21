@@ -13,7 +13,13 @@ if not cors_origins:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await create_tables()
+    import asyncio
+    try:
+        await asyncio.wait_for(create_tables(), timeout=20.0)
+    except asyncio.TimeoutError:
+        print("WARNING: create_tables() timed out — DB may be unreachable. Starting anyway.")
+    except Exception as e:
+        print(f"WARNING: create_tables() failed: {e}. Starting anyway.")
     yield
 
 
