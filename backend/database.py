@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = "lax"
     COOKIE_DOMAIN: str = ""
     RESEND_API_KEY: str = ""
+    BACKEND_URL: str = ""  # e.g. https://optifi-backend.onrender.com — used to build OAuth redirect URIs
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

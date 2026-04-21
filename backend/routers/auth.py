@@ -73,7 +73,10 @@ async def login(body: LoginRequest, response: Response, db: AsyncSession = Depen
 
 @router.get("/google")
 async def google_login(request: Request):
-    redirect_uri = str(request.url_for("google_callback"))
+    if settings.BACKEND_URL:
+        redirect_uri = settings.BACKEND_URL.rstrip("/") + "/auth/google/callback"
+    else:
+        redirect_uri = str(request.url_for("google_callback"))
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
