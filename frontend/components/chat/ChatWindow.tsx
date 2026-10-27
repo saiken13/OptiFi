@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { isAxiosError } from "axios";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Send, Loader2, Mic, MicOff } from "lucide-react";
 import { chatApi } from "@/lib/api";
@@ -38,6 +39,7 @@ type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
 export function ChatWindow() {
   const [input, setInput] = useState("");
+  const [sendError, setSendError] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -51,8 +53,8 @@ export function ChatWindow() {
 
   const sendMessage = useMutation({
     mutationFn: (message: string) => chatApi.send(message).then((r) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["chat-history"] });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["chat-history"] });
       qc.invalidateQueries({ queryKey: ["budgets"] });
       qc.invalidateQueries({ queryKey: ["goals"] });
       qc.invalidateQueries({ queryKey: ["loans"] });
@@ -76,6 +78,7 @@ export function ChatWindow() {
     if (!message || sendMessage.isPending) return;
 
     setInput("");
+    setSendError(null);
 
     const optimistic: ChatMessage = {
       id: `optimistic-${Date.now()}`,
@@ -89,6 +92,10 @@ export function ChatWindow() {
 
     try {
       await sendMessage.mutateAsync(message);
+    } catch (error) {
+      const detail = isAxiosError(error) ? error.response?.data?.detail : null;
+      setSendError(typeof detail === "string" ? detail : "Your message could not be sent. Please try again.");
+      setInput((current) => current || message);
     } finally {
       setOptimisticMessages([]);
     }
@@ -180,6 +187,7 @@ export function ChatWindow() {
 
       {/* Input */}
       <div className="p-4 border-t border-border">
+        {sendError && <p role="alert" className="text-sm text-red-400 mb-2">{sendError}</p>}
         <div className="flex gap-2 items-end bg-card border border-border rounded-xl px-4 py-2.5">
           <textarea
             ref={textareaRef}

@@ -3,7 +3,9 @@ import re
 from typing import Optional
 from pathlib import Path
 import groq
+from sqlalchemy import select
 from database import settings
+from models.message import Message
 
 from .budget_agent import BudgetAgent
 from .goal_agent import GoalAgent
@@ -35,6 +37,11 @@ def _load_intent_prompt() -> str:
 
 def keyword_route(message: str) -> Optional[str]:
     msg_lower = message.lower()
+    future_purchase = re.search(r"\bplan(?:ning)?\b.*\b(?:buy|purchase)\b", msg_lower)
+    future_deadline = re.search(r"\b(?:in\s+(?:\d+|a|an|one|two|three)\s+(?:months?|years?)|next\s+(?:month|year))\b", msg_lower)
+    saving_to_buy = re.search(r"\bsav(?:e|ing)\b.*\b(?:buy|purchase)\b", msg_lower)
+    if saving_to_buy or (future_purchase and future_deadline):
+        return "goal"
     for intent, keywords in INTENT_KEYWORDS.items():
         if any(kw in msg_lower for kw in keywords):
             return intent
@@ -70,11 +77,23 @@ class Orchestrator:
         start = time.monotonic()
 
         intent = keyword_route(message)
+        context = dict(context or {})
+        # Pending details come from the last saved assistant response, scoped to this user.
+        context.pop("pending_goal", None)
+        if intent in (None, "goal"):
+            previous = (await self.db.execute(
+                select(Message).where(Message.user_id == user_id, Message.role == "assistant")
+                .order_by(Message.created_at.desc()).limit(1)
+            )).scalar_one_or_none()
+            pending = (previous.structured_data or {}).get("pending_goal") if previous else None
+            if pending and (intent == "goal" or re.search(r"\d|\b(?:cancel|never mind|nevermind)\b", message, re.I)):
+                context["pending_goal"] = pending
+                intent = "goal"
         if intent is None:
             intent = await llm_classify_intent(message)
 
         agent = self.agents.get(intent, self.agents["general"])
-        result = await agent.run(user_id=user_id, message=message, context=context or {})
+        result = await agent.run(user_id=user_id, message=message, context=context)
 
         elapsed_ms = int((time.monotonic() - start) * 1000)
         return {
