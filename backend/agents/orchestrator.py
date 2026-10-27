@@ -38,10 +38,12 @@ def _load_intent_prompt() -> str:
 def keyword_route(message: str) -> Optional[str]:
     msg_lower = message.lower()
     future_purchase = re.search(r"\bplan(?:ning)?\b.*\b(?:buy|purchase)\b", msg_lower)
-    future_deadline = re.search(r"\b(?:in\s+(?:\d+|a|an|one|two|three)\s+(?:months?|years?)|next\s+(?:month|year))\b", msg_lower)
+    shopping_request = re.search(r"\b(?:which card|best price|cheapest|compare|find deals|where should i|where can i)\b", msg_lower)
     saving_to_buy = re.search(r"\b(?:save|saved|saving|asaved)\b.*\b(?:buy\w*|purchase|car|goal)\b", msg_lower)
-    if saving_to_buy or (future_purchase and future_deadline):
+    if saving_to_buy or (future_purchase and not shopping_request):
         return "goal"
+    if shopping_request:
+        return "purchase_optimize"
     for intent, keywords in INTENT_KEYWORDS.items():
         if any(kw in msg_lower for kw in keywords):
             return intent
@@ -81,17 +83,23 @@ class Orchestrator:
         # Pending details come from the last saved assistant response, scoped to this user.
         context.pop("pending_goal", None)
         context.pop("pending_loan_payment", None)
-        if intent in (None, "goal", "loan"):
+        context.pop("pending_purchase", None)
+        if intent in (None, "goal", "loan", "purchase_optimize", "budget"):
             previous = (await self.db.execute(
                 select(Message).where(Message.user_id == user_id, Message.role == "assistant")
                 .order_by(Message.created_at.desc()).limit(1)
             )).scalar_one_or_none()
             pending = (previous.structured_data or {}).get("pending_goal") if previous else None
             pending_payment = (previous.structured_data or {}).get("pending_loan_payment") if previous else None
+            pending_purchase = (previous.structured_data or {}).get("pending_purchase") if previous else None
+            budget_answer = intent == "budget" and re.search(r"\bbudget\b.*\d", message, re.I) and not re.search(r"\b(?:monthly|category|create|set|limit)\b", message, re.I)
+            if pending_purchase and (intent in (None, "purchase_optimize") or budget_answer):
+                context["pending_purchase"] = pending_purchase
+                intent = "purchase_optimize"
             if pending_payment and intent in (None, "loan"):
                 context["pending_loan_payment"] = pending_payment
                 intent = "loan"
-            if pending and intent in (None, "goal"):
+            if pending and (intent in (None, "goal") or budget_answer):
                 context["pending_goal"] = pending
                 intent = "goal"
         if intent is None:

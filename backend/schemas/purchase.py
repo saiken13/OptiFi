@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 
@@ -8,7 +8,7 @@ class PurchaseSearchRequest(BaseModel):
 
 class PurchaseOptimizeRequest(BaseModel):
     query: str
-    budget: Optional[float] = None
+    budget: Optional[float] = Field(default=None, gt=0, allow_inf_nan=False)
 
 
 class MerchantResult(BaseModel):

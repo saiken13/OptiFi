@@ -84,6 +84,18 @@ class GoalChatTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(keyword_route("Where should I buy a laptop?"), "purchase_optimize")
         self.assertEqual(keyword_route("Planning to buy a laptop today, which card should I use?"), "purchase_optimize")
 
+    async def test_budget_answer_completes_pending_goal_instead_of_creating_budget(self):
+        db = MagicMock()
+        db.execute = AsyncMock(return_value=MagicMock())
+        pending = {"name": "Bike", "target_amount": None, "action": "create"}
+        db.execute.return_value.scalar_one_or_none.return_value = SimpleNamespace(structured_data={"pending_goal": pending})
+        orchestrator = object.__new__(Orchestrator)
+        orchestrator.db = db
+        goal_agent = SimpleNamespace(run=AsyncMock(return_value={"response": "Created", "structured_data": {}}))
+        orchestrator.agents = {"goal": goal_agent, "general": None}
+        await orchestrator.route("user-1", "My budget is $1000")
+        self.assertEqual(goal_agent.run.call_args.kwargs["context"]["pending_goal"], pending)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -118,12 +118,15 @@ class PurchaseOptimizerService:
 
     def _mock_products(self, query: str) -> list[dict]:
         base = 49.99
-        return [
+        products = [
             {"merchant": "Amazon", "title": query, "price": base, "shipping": 0.0, "url": "https://amazon.com", "in_stock": True},
             {"merchant": "Walmart", "title": query, "price": base * 0.97, "shipping": 5.99, "url": "https://walmart.com", "in_stock": True},
             {"merchant": "Target", "title": query, "price": base * 1.02, "shipping": 5.99, "url": "https://target.com", "in_stock": True},
             {"merchant": "Best Buy", "title": query, "price": base * 1.05, "shipping": 0.0, "url": "https://bestbuy.com", "in_stock": True},
         ]
+        for product in products:
+            product["is_sample"] = True
+        return products
 
     def _apply_membership(self, merchant: str, price: float, shipping: float, memberships: list) -> tuple[float, float, Optional[str]]:
         merchant_lower = merchant.lower()
@@ -196,12 +199,14 @@ class PurchaseOptimizerService:
             })
         return sorted(results, key=lambda x: x["cashback_amount"], reverse=True)
 
-    async def optimize(self, query: str, cards: list, memberships: list) -> dict:
+    async def optimize(self, query: str, cards: list, memberships: list, budget: Optional[float] = None) -> dict:
         enhanced_query = await self._enhance_query(query)
         products = await self._search_products(enhanced_query)
 
         options = []
         for p in products:
+            if p.get("is_sample"):
+                continue
             price = p["price"]
             shipping = p["shipping"]
             merchant = p["merchant"]
@@ -213,6 +218,8 @@ class PurchaseOptimizerService:
 
             rate, card_id, card_name, evidence = self._best_card_rate(merchant, cards)
             effective_total = eff_price + eff_shipping
+            if budget is not None and effective_total > budget:
+                continue
             cashback = round(effective_total * rate, 2)
             net_cost = round(effective_total - cashback, 2)
 
@@ -241,6 +248,8 @@ class PurchaseOptimizerService:
 
         return {
             "query": query,
+            "budget": budget,
+            "data_status": "sample_only" if products and all(p.get("is_sample") for p in products) else "live",
             "enhanced_query": enhanced_query,
             "best_option": ranked[0] if ranked else None,
             "alternatives": ranked[1:4],

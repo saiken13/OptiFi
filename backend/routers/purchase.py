@@ -30,7 +30,7 @@ async def optimize_purchase(
     memberships = memberships_q.scalars().all()
 
     service = PurchaseOptimizerService()
-    result = await service.optimize(query=body.query, cards=cards, memberships=memberships)
+    result = await service.optimize(query=body.query, cards=cards, memberships=memberships, budget=body.budget)
     return result
 
 
