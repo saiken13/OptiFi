@@ -80,12 +80,17 @@ class Orchestrator:
         context = dict(context or {})
         # Pending details come from the last saved assistant response, scoped to this user.
         context.pop("pending_goal", None)
-        if intent in (None, "goal"):
+        context.pop("pending_loan_payment", None)
+        if intent in (None, "goal", "loan"):
             previous = (await self.db.execute(
                 select(Message).where(Message.user_id == user_id, Message.role == "assistant")
                 .order_by(Message.created_at.desc()).limit(1)
             )).scalar_one_or_none()
             pending = (previous.structured_data or {}).get("pending_goal") if previous else None
+            pending_payment = (previous.structured_data or {}).get("pending_loan_payment") if previous else None
+            if pending_payment and intent in (None, "loan"):
+                context["pending_loan_payment"] = pending_payment
+                intent = "loan"
             if pending and (intent == "goal" or re.search(r"\d|\b(?:cancel|never mind|nevermind)\b", message, re.I)):
                 context["pending_goal"] = pending
                 intent = "goal"

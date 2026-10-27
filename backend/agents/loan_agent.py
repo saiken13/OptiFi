@@ -1,12 +1,17 @@
 from sqlalchemy import select
 from models.loan import Loan
 from utils.helpers import loan_amortization
+from services.loan_payment_service import LoanPaymentService
 from .base_agent import BaseAgent
 
 
 class LoanAgent(BaseAgent):
     async def run(self, user_id: str, message: str, context: dict) -> dict:
-        await self._extract_and_save_financial_data(user_id, message)
+        payment_result = await LoanPaymentService(self.db, self.ask_llm).handle(user_id, message, context)
+        if payment_result is not None and not payment_result.get("analysis_only"):
+            return payment_result
+        if payment_result is None:
+            await self._extract_and_save_financial_data(user_id, message)
 
         loans_q = await self.db.execute(select(Loan).where(Loan.user_id == user_id))
         loans = loans_q.scalars().all()
@@ -62,5 +67,8 @@ class LoanAgent(BaseAgent):
             ),
         }
 
-        response = await self.format_response(tool_output, user_context=f"User asked: {message}")
+        response = await self.format_response(tool_output, user_context=(
+            f"User asked: {message}\nThis is loan analysis. No payment was recorded by this analysis. "
+            "Use only stored balances and calculated schedules; do not claim a payment changed the balance."
+        ))
         return {"response": response, "structured_data": tool_output}
