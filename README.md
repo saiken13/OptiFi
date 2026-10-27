@@ -193,7 +193,7 @@ Copy `backend/.env.example` to `backend/.env` and fill in each value.
 | `ALGORITHM` | No | JWT algorithm. Default: `HS256` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | No | Token TTL in minutes. Default: `10080` (7 days) |
 | `GROQ_API_KEY` | **Yes** | Groq API key for LLM inference. Get one free at [console.groq.com](https://console.groq.com). |
-| `GROQ_MODEL` | No | Groq model to use. Default: `llama-3.3-70b-versatile` |
+| `GROQ_MODEL` | No | Groq model to use. Default: `openai/gpt-oss-120b` |
 | `SERPER_API_KEY` | Recommended | Serper.dev API key for product/merchant search in the purchase optimizer. Free tier available at [serper.dev](https://serper.dev). Without this, purchase optimization falls back to mock data. |
 | `FRONTEND_URL` | **Yes** | Your frontend origin for CORS. Development: `http://localhost:3000` |
 | `GOOGLE_CLIENT_ID` | Optional | Google OAuth client ID. Get from [Google Cloud Console](https://console.cloud.google.com/). Required only if you want Google sign-in. |
