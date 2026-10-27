@@ -39,7 +39,7 @@ def keyword_route(message: str) -> Optional[str]:
     msg_lower = message.lower()
     future_purchase = re.search(r"\bplan(?:ning)?\b.*\b(?:buy|purchase)\b", msg_lower)
     future_deadline = re.search(r"\b(?:in\s+(?:\d+|a|an|one|two|three)\s+(?:months?|years?)|next\s+(?:month|year))\b", msg_lower)
-    saving_to_buy = re.search(r"\bsav(?:e|ing)\b.*\b(?:buy|purchase)\b", msg_lower)
+    saving_to_buy = re.search(r"\b(?:save|saved|saving|asaved)\b.*\b(?:buy\w*|purchase|car|goal)\b", msg_lower)
     if saving_to_buy or (future_purchase and future_deadline):
         return "goal"
     for intent, keywords in INTENT_KEYWORDS.items():
@@ -91,7 +91,7 @@ class Orchestrator:
             if pending_payment and intent in (None, "loan"):
                 context["pending_loan_payment"] = pending_payment
                 intent = "loan"
-            if pending and (intent == "goal" or re.search(r"\d|\b(?:cancel|never mind|nevermind)\b", message, re.I)):
+            if pending and intent in (None, "goal"):
                 context["pending_goal"] = pending
                 intent = "goal"
         if intent is None:

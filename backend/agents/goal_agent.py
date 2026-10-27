@@ -1,6 +1,7 @@
 import json
 from datetime import date
-from typing import Literal, Optional
+from decimal import Decimal
+from typing import Annotated, Literal, Optional
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field, ValidationError
@@ -8,18 +9,28 @@ from sqlalchemy import select, func
 from models.goal import Goal
 from utils.helpers import calculate_months_to_goal, format_currency
 from .base_agent import BaseAgent
+from services.goal_contribution_service import record_goal_contribution
 
 
 class GoalPlan(BaseModel):
-    action: Literal["create", "cancel", "none"]
+    action: Literal["create", "cancel", "none", "contribute"]
     name: str = Field(default="Savings Goal", min_length=1, max_length=255)
     target_amount: Optional[float] = Field(default=None, gt=0, allow_inf_nan=False)
     target_date: Optional[date] = None
     monthly_contribution: float = Field(default=0, ge=0, allow_inf_nan=False)
+    contribution_amount: Optional[Annotated[Decimal, Field(gt=0, max_digits=12, decimal_places=2)]] = None
+    contribution_date: Optional[date] = None
 
 
 GOAL_PLAN_PROMPT = """Extract a savings goal request. Return ONLY JSON with keys:
-action (create, cancel, or none), name, target_amount, target_date (YYYY-MM-DD or null), monthly_contribution.
+action (create, cancel, none, contribute), name, target_amount, target_date (YYYY-MM-DD or null), monthly_contribution,
+contribution_amount (money actually added to existing goal), contribution_date (YYYY-MM-DD or null).
+Completed savings toward an existing goal is action contribute, NOT create.
+"I saved $1500 this month for buying a car" and the typo "I asaved $1500" mean contribute 1500 toward the existing car goal.
+For contributions, select the exact existing goal name from available_goals only when unambiguous.
+If several goals fit, do not guess a name; ask which goal. Preserve a pending contribution's amount when the user selects a goal.
+Do not treat a contribution as a new target or as a recurring monthly setting. Future plans and hypothetical contributions do not add savings.
+If a statement only reports a lifetime total rather than an additional amount, use action none and ask for clarification; do not add that total again.
 Planning to buy something in the future is a create request, even without a target amount.
 Questions about existing goals or hypothetical examples are action none.
 Only use a target amount explicitly supplied by the user. Otherwise use null; never invent a price or down payment.
@@ -32,11 +43,15 @@ Do not treat a number of years or months as money."""
 
 class GoalAgent(BaseAgent):
     async def run(self, user_id: str, message: str, context: dict) -> dict:
+        available_goals = list((await self.db.execute(
+            select(Goal).where(Goal.user_id == user_id, Goal.status == "active")
+        )).scalars().all())
         raw = await self.ask_llm(
             system=GOAL_PLAN_PROMPT,
             user=json.dumps({
                 "today": date.today().isoformat(),
                 "pending_goal": context.get("pending_goal"),
+                "available_goals": [{"name": g.name} for g in available_goals],
                 "message": message,
             }),
             max_tokens=1200,
@@ -50,6 +65,8 @@ class GoalAgent(BaseAgent):
 
         if plan.action == "cancel":
             return {"response": "Cancelled the pending goal request.", "structured_data": {"goal_action": "cancelled"}}
+        if plan.action == "contribute":
+            return await record_goal_contribution(self.db, user_id, plan, available_goals)
         if plan.action == "create":
             if plan.target_amount is None:
                 deadline = f" by {plan.target_date.isoformat()}" if plan.target_date else ""

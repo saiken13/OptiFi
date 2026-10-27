@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -61,4 +62,4 @@ app.include_router(tax.router)
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "OptiFi API"}
+    return {"status": "ok", "service": "OptiFi API", "commit": os.environ.get("RENDER_GIT_COMMIT", "unknown")}

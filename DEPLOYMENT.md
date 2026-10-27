@@ -68,3 +68,20 @@ In Google Cloud Console OAuth client settings, add:
 - Render free web service spins down after ~15 minutes idle (cold starts).
 - Supabase free tier has usage/storage limits.
 - Vercel Hobby has usage limits.
+
+## Code pushed but Render has not deployed
+
+GitHub pushes and Render deployments are separate. Check the backend service whose
+URL matches the frontend's `NEXT_PUBLIC_API_URL`.
+
+- Repository: `saiken13/OptiFi`; branch: `main`; root directory: `backend`.
+- Auto-Deploy should be `On Commit`. Check build filters include changed backend files.
+- A service created from a public repository URL without connecting GitHub needs manual deployment.
+- Use **Manual Deploy → Deploy latest commit** to deploy the linked branch. Restarting
+  a service restarts its currently deployed commit; it does not fetch the latest code.
+- Check the deploy's commit and build/start logs. A failed deploy can leave the previous
+  version live. If the linked branch is stale or incorrect, fix it before deploying.
+- After deployment, `/health` includes `commit`, taken from `RENDER_GIT_COMMIT`.
+  Compare it with GitHub's latest `main` SHA. This version check does not test database health.
+
+Reference: https://render.com/docs/deploys
