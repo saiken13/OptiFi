@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import String, Text, DateTime, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -16,6 +16,12 @@ class Message(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     agent_type: Mapped[Optional[str]] = mapped_column(String(50))  # budget | goal | loan | etc.
     structured_data: Mapped[Optional[dict]] = mapped_column(JSONB)  # tool output JSON
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Python-side default: Postgres now() is the transaction start time, which gave the
+    # user message and assistant reply in one request identical timestamps.
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+    )
 
     user: Mapped["User"] = relationship("User", back_populates="messages")

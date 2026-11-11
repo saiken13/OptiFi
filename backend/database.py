@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import text
 from sqlalchemy.pool import NullPool
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import AsyncGenerator
@@ -84,3 +85,14 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def create_tables():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await enable_row_level_security(conn)
+
+
+async def enable_row_level_security(conn) -> None:
+    """Block Supabase's public PostgREST API (anon/authenticated roles) from every app table.
+
+    No policies are defined, so those roles get no rows. The backend connects as the
+    table owner, which bypasses RLS, so app queries are unaffected.
+    """
+    for table in Base.metadata.sorted_tables:
+        await conn.execute(text(f'ALTER TABLE "{table.name}" ENABLE ROW LEVEL SECURITY'))

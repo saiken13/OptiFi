@@ -7,6 +7,7 @@ import { Send, Loader2, Mic, MicOff } from "lucide-react";
 import { chatApi } from "@/lib/api";
 import type { ChatMessage } from "@/types";
 import { MessageBubble } from "./MessageBubble";
+import { useSpeechInput } from "./useSpeechInput";
 
 const SUGGESTED_PROMPTS = [
   "How is my budget looking this month?",
@@ -16,34 +17,14 @@ const SUGGESTED_PROMPTS = [
   "Give me a weekly financial review",
 ];
 
-type SpeechRecognitionResultLike = {
-  transcript: string;
-};
-
-type SpeechRecognitionEventLike = {
-  results: ArrayLike<ArrayLike<SpeechRecognitionResultLike>>;
-};
-
-type SpeechRecognitionLike = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onend: (() => void) | null;
-  onerror: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
-
 export function ChatWindow() {
   const [input, setInput] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
-  const [isListening, setIsListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const { isListening, toggleMic } = useSpeechInput((transcript) =>
+    setInput((prev) => (prev ? `${prev} ${transcript}` : transcript))
+  );
   const qc = useQueryClient();
 
   const { data: history = [], isLoading: historyLoading } = useQuery<ChatMessage[]>({
@@ -66,12 +47,19 @@ export function ChatWindow() {
   const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([]);
 
   const allMessages = [...history, ...optimisticMessages];
+  const isSending = sendMessage.isPending;
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [allMessages]);
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [allMessages.length, isSending]);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [input]);
 
   const handleSend = async (text?: string) => {
     const message = text || input.trim();
@@ -101,39 +89,8 @@ export function ChatWindow() {
     }
   };
 
-  const toggleMic = () => {
-    const w = window as Window & {
-      SpeechRecognition?: SpeechRecognitionConstructor;
-      webkitSpeechRecognition?: SpeechRecognitionConstructor;
-    };
-    const SpeechRecognition = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-
-    if (isListening) {
-      recognitionRef.current?.stop();
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
-
-    recognition.onresult = (event: SpeechRecognitionEventLike) => {
-      const transcript = event.results[0][0].transcript;
-      setInput((prev) => (prev ? prev + " " + transcript : transcript));
-    };
-
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
-
-    recognitionRef.current = recognition;
-    recognition.start();
-    setIsListening(true);
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleSend();
     }
@@ -196,7 +153,7 @@ export function ChatWindow() {
             onKeyDown={handleKeyDown}
             placeholder="Ask about your finances..."
             rows={1}
-            className="flex-1 bg-transparent text-sm resize-none focus:outline-none max-h-28 leading-relaxed"
+            className="flex-1 bg-transparent text-sm resize-none focus:outline-none max-h-28 overflow-y-auto leading-relaxed"
             style={{ minHeight: "24px" }}
           />
           <button

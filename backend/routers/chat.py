@@ -1,4 +1,3 @@
-import uuid as uuid_lib
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 import groq
@@ -65,10 +64,12 @@ async def get_history(
     user_id: str = Depends(get_current_user_id),
 ):
     from sqlalchemy import select
+    # Older rows share a timestamp per exchange; on ties put the assistant reply first
+    # in this descending query so the user message precedes it once reversed.
     result = await db.execute(
         select(Message)
         .where(Message.user_id == user_id)
-        .order_by(Message.created_at.desc())
+        .order_by(Message.created_at.desc(), (Message.role == "user").asc(), Message.id)
         .limit(limit)
     )
     messages = result.scalars().all()

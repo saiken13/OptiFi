@@ -1,9 +1,8 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
-import { cn, AGENT_LABELS } from "@/lib/utils";
+import { cn, AGENT_LABELS, formatDate } from "@/lib/utils";
 import type { ChatMessage } from "@/types";
-import { formatDate } from "@/lib/utils";
 import { DollarSign } from "lucide-react";
 
 interface Props {
@@ -26,8 +25,8 @@ export function MessageBubble({ message }: Props) {
   if (isUser) {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[75%] bg-primary text-primary-foreground rounded-2xl rounded-tr-sm px-4 py-2.5">
-          <p className="text-sm">{message.content}</p>
+        <div className="max-w-[75%] min-w-0 bg-primary text-primary-foreground rounded-2xl rounded-tr-sm px-4 py-2.5">
+          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
         </div>
       </div>
     );
@@ -55,7 +54,7 @@ export function MessageBubble({ message }: Props) {
             {formatDate(message.created_at)}
           </span>
         </div>
-        <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 prose-chat">
+        <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 prose-chat break-words overflow-x-auto">
           <ReactMarkdown>{message.content}</ReactMarkdown>
         </div>
       </div>
